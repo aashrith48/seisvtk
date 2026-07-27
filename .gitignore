@@ -1,0 +1,100 @@
+# ---------------------------------------------------------------------------
+# Seismic data -- NEVER commit these.
+# The local Volve volumes alone are 3.4 GB and would blow past GitHub's
+# 100 MB/file hard limit. Keep survey data outside the repo entirely.
+# ---------------------------------------------------------------------------
+Volve/
+data/
+*.segy
+*.sgy
+*.SEGY
+*.SGY
+*.su
+*.rsf
+*.vds
+*.zgy
+*.h5
+*.hdf5
+*.zarr/
+*.npy
+*.npz
+
+# Rendered output
+*.png
+*.jpg
+*.jpeg
+*.tif
+*.tiff
+*.mp4
+*.gif
+*.vtk
+*.vti
+*.vtu
+*.vtp
+renders/
+screenshots/
+!docs/**/*.png
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+sdist/
+wheels/
+*.egg-info/
+*.egg
+MANIFEST
+pip-wheel-metadata/
+
+# Environments
+.venv/
+venv/
+env/
+ENV/
+.conda/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+
+# Type checking / linting caches
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pyre/
+.pytype/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# ---------------------------------------------------------------------------
+# Editors / OS
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.*
+!.env.example

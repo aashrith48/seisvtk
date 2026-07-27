@@ -1,0 +1,25 @@
+dTect V7.0.0
+Survey Info
+2023-06-12T10:25:29Z
+!
+Name: F3 Demo 2023
+Survey Data Type: Both 2D and 3D
+In-line range: 100`750`1
+Cross-line range: 300`1250`1
+Z range: 0`1.848`0.004`T
+Coord-X-BinID: 598408.2476`-0.6980137931`24.99024752
+Coord-Y-BinID: 6070847.887`24.98965517`0.6984323432
+Set Point.1: 99/104`(600938.13,6073394.5)
+Set Point.2: 824/1316`(630720.25,6092358.5)
+Set Point.3: 99/1316`(631226.31,6074241)
+Coordinate System.System name: ProjectionBased System
+Coordinate System.Projection.ID: EPSG`23031
+Coordinate System.Projection.Name: ED50 / UTM zone 31N
+Seismic Reference Datum: 0
+!
+F3-block, offshore the Netherlands.
+Licensed under Creative Commons BY-SA 3.0. For more information, please refer to https://terranubis.com/datalist/free
+
+2023 version for OpendTect 7
+
+
