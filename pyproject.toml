@@ -8,7 +8,7 @@ version = "0.0.1"
 description = "3D seismic visualization with VTK"
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{ name = "Aashrit", email = "abagareddy@quanticoenergy.com" }]
+authors = [{ name = "Aashrit", email = "aashrith12345@gmail.com" }]
 
 dependencies = [
     "numpy",
