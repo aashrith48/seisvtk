@@ -39,4 +39,4 @@ src/seisvtk/    # package source
 
 ## License
 
-TBD
+[MIT](LICENSE) © 2026 Aashrit

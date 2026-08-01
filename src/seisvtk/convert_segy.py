@@ -8,7 +8,6 @@ import logging
 import sys
 import segyio
 import zarr
-from zarr.codecs import BloscCodec, BloscShuffle
 from seisvtk.logging_config import setup_logging
 from seisvtk.segy2zarr import convert_segy_to_zarr
 
