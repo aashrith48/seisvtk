@@ -1,4 +1,4 @@
-from seisvtk.segy_scan import detect_geometry, open_auto
+from seisvtk.io.segy_scan import detect_geometry, open_auto
 import argparse
 import os
 from pathlib import Path
@@ -8,8 +8,8 @@ import logging
 import sys
 import segyio
 import zarr
-from seisvtk.logging_config import setup_logging
-from seisvtk.segy2zarr import convert_segy_to_zarr
+from seisvtk.io.logging_config import setup_logging
+from seisvtk.io.segy2zarr import convert_segy_to_zarr
 
 #Find relative path for output files
 REPO_PATH = Path(__file__).resolve().parents[2]

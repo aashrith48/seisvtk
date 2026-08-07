@@ -1,6 +1,6 @@
 import zarr
 from zarr.codecs import BloscCodec, BloscShuffle
-from seisvtk.logging_config import setup_logging
+from seisvtk.io.logging_config import setup_logging
 import logging
 import segyio
 import numpy as np
@@ -78,6 +78,7 @@ def convert_segy_to_zarr(
               "xline_range": [int(xl_labels[0]), int(xl_labels[-1])],
               "n_samples": int(n_samp),
               "sample_interval": float(segyio.tools.dt(f) / 1000.0),  # ms
+              "z_range": [float(f.samples[0]), float(f.samples[-1])],
               "z_start": float(f.samples[0]),
               "n_traces": int(f.tracecount),
               "grid_cells": int(n_il * n_xl),
