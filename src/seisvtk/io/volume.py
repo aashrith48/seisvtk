@@ -36,24 +36,24 @@ class Volume:
         self.metadata = dict(self.array.attrs)
         self.shape = self.array.shape
 
-    def __getitem__(self, idx):
+    def seismic_slice(self, idx):
         """Index the underlying Zarr array directly, in *array-index* space.
 
         A raw passthrough with no survey-coordinate conversion. Pass it the tuple
-        from :meth:`get_array_index`, e.g. ``vol[vol.get_array_index(inline=300)]``.
+        from :meth:`get_array_index`, e.g. ``vol[vol.get_array_index(iline=300)]``.
         """
         return self.array[idx]
 
     def get_array_index(self,
                         xline: int | None = None,
-                        inline: int | None = None,
+                        iline: int | None = None,
                         z: float | None = None):
         """Convert survey coordinates to a Zarr index tuple for one slice.
 
         Each axis left as ``None`` becomes a full slice (``:``), so passing a single
         coordinate yields the plane orthogonal to that axis:
 
-            * ``inline=300`` -> ``(idx, :, :)``  one inline section
+            * ``iline=300``  -> ``(idx, :, :)``  one inline section
             * ``xline=500``  -> ``(:, idx, :)``  one crossline section
             * ``z=1200.0``   -> ``(:, :, idx)``  one time/depth slice
 
@@ -63,11 +63,11 @@ class Volume:
 
         Args:
             xline: Crossline *number* (survey label), not an array index.
-            inline: Inline *number* (survey label), not an array index.
+            iline: Inline *number* (survey label), not an array index.
             z: Vertical coordinate in the cube's units (ms or m), from ``z_range``.
 
         Returns:
-            A ``(inline_idx, xline_idx, z_idx)`` tuple for use with ``__getitem__``;
+            A ``(iline_idx, xline_idx, z_idx)`` tuple for use with ``__getitem__``;
             unspecified axes are ``slice(None)``.
         """
 
@@ -77,13 +77,16 @@ class Volume:
         z_arr_idx: int | slice = slice(None)
 
         #Get slice index if requested
-        if inline is not None:
-            iline_arr_idx = inline - self.metadata['iline_range'][0]
+        if iline is not None:
+            iline_arr_n = iline - self.metadata['iline_range'][0]
+            iline_arr_idx = slice(iline_arr_n,iline_arr_n+1)
         if xline is not None:
-            xline_arr_idx = xline - self.metadata['xline_range'][0]
+            xline_arr_n = xline - self.metadata['xline_range'][0]
+            xline_arr_idx = slice(xline_arr_n,xline_arr_n+1)
         if z is not None:
-            z_arr_idx = int(round(
+            z_arr_n = int(round(
                 (z - self.metadata['z_range'][0]) / self.metadata['sample_interval']
             ))
+            z_arr_idx = slice(z_arr_n,z_arr_n+1)
 
         return (iline_arr_idx, xline_arr_idx, z_arr_idx)

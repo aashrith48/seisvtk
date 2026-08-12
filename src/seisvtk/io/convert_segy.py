@@ -41,14 +41,14 @@ def main():
     out = os.path.join(output_folder,args.out+'.zarr')
 
     #Automatically scan SEGY for geometry
-    # Resolve inline/crossline bytes from either --auto or the manual flags.
+    # Resolve iline/xline bytes from either --auto or the manual flags.
     if args.auto:
         geom = detect_geometry(args.filepath)
         logger.info(f'Scanned SEGY Geometry: {geom}')
         iline, xline = geom["iline_byte"], geom["xline_byte"]
     elif args.iline is not None and args.xline is not None:
         iline, xline = args.iline, args.xline
-        logger.info(f'Using INLINE:{iline} CROSSLINE:{xline} byte locations')
+        logger.info(f'Using ILINE:{iline} XLINE:{xline} byte locations')
     else:
         parser.error('--iline and --xline are required when --auto is not set.')
 
