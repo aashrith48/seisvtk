@@ -21,6 +21,9 @@ dependencies = [
     "vtk",
     "torch",
     "segyio",
+    "trame",
+    "trame-vtk",
+    "trame-vuetify"
 ]
 
 [tool.setuptools.packages.find]

@@ -5,6 +5,7 @@ from pathlib import Path
 from seisvtk.io.volume import Volume
 from seisvtk.viz.bridge import slice_to_image_data
 from seisvtk.viz.actors import grey_image_slice
+from seisvtk.viz.colormaps import build_lut
 
 
 class SliceScene:
@@ -21,7 +22,8 @@ class SliceScene:
 
     def __init__(self, zarr_path: Path | str, *,
                  iline: int, xline: int, z: float,
-                 vertical_exaggeration: float = 1.0):
+                 vertical_exaggeration: float = 1.0,
+                 offscreen: bool = True):
         self.vol = Volume(zarr_path=Path(zarr_path))
         self.md = self.vol.metadata
         self.n_il, self.n_xl, self.n_samp = self.vol.shape
@@ -42,17 +44,21 @@ class SliceScene:
         self._a_il = grey_image_slice(il, self.clip, self.spacing)
         self._a_xl = grey_image_slice(xl, self.clip, self.spacing)
         self._a_z = grey_image_slice(zs, self.clip, self.spacing)
-        for a in (self._a_il, self._a_xl, self._a_z):
+        self._actors = (self._a_il, self._a_xl, self._a_z)
+        for a in self._actors:
             self.ren.AddActor(a)
         self._place_all()
+        self.colormap = "Greyscale"
+        self.set_colormap(self.colormap)
 
         self._add_outline()
 
         self.rw = vtk.vtkRenderWindow()
-        self.rw.SetOffScreenRendering(1)
+        self.rw.SetOffScreenRendering(offscreen)
         self.rw.AddRenderer(self.ren)
         self.rw.SetSize(1000, 1000)
         self._setup_camera()
+        
 
     # ---- survey-coordinate -> array-index helpers ----
     def _il_index(self, n: int) -> int:
@@ -91,6 +97,7 @@ class SliceScene:
         oa.SetMapper(om)
         oa.GetProperty().SetColor(1, 1, 1)
         self.ren.AddActor(oa)
+        self._outline = outline
 
     def _setup_camera(self) -> None:
         cam = self.ren.GetActiveCamera()
@@ -116,6 +123,30 @@ class SliceScene:
         self.z = v
         self._refill(self._a_z, self._read(z=v))
         self._a_z.SetPosition(0, 0, self._z_index(v) * self.ve)
+
+    def reset_camera(self) -> None:
+        """Refit the camera to the default 3/4 view with depth pointing down."""
+        self._setup_camera()
+
+    def set_vertical_exaggeration(self, ve: float) -> None:
+        """Rescale the depth (z) axis live: image spacing, z-slice position, box."""
+        self.ve = ve
+        self.spacing = (1.0, 1.0, ve)
+        for a in self._actors:
+            a.GetMapper().GetInput().SetSpacing(*self.spacing)
+        self._a_z.SetPosition(0, 0, self._z_index(self.z) * ve)
+        self._outline.SetBounds(0, self.n_il - 1, 0, self.n_xl - 1,
+                                0, (self.n_samp - 1) * ve)
+        self.ren.ResetCameraClippingRange()
+
+    def set_colormap(self, name: str) -> None:
+        """Apply a named color table to all three slices (see colormaps.NAMES)."""
+        lut = build_lut(name, self.clip)
+        for a in self._actors:
+            prop = a.GetProperty()
+            prop.SetLookupTable(lut)
+            prop.UseLookupTableScalarRangeOn()
+        self.colormap = name
 
     @property
     def render_window(self) -> vtk.vtkRenderWindow:
