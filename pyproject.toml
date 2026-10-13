@@ -4,29 +4,52 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "seisvtk"
-version = "0.0.1"
-description = "3D seismic visualization with VTK"
+version = "0.1.0"
+description = "Server-side 3D seismic cross-section viewer (trame + VTK) with a VTK-free I/O core"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Aashrit", email = "aashrith12345@gmail.com" }]
 license = { text = "MIT" }
+keywords = ["seismic", "visualization", "vtk", "trame", "segy", "zarr", "geoscience"]
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Intended Audience :: Science/Research",
 ]
 
+# Core = the VTK-free I/O layer (seisvtk.io): read/convert SEG-Y, Zarr, wells,
+# horizons, survey geometry. This is all a producer (e.g. a one-shot pipeline
+# node) needs, and it stays light — no VTK, no trame.
 dependencies = [
     "numpy",
-    "vtk",
-    "torch",
+    "pandas",
     "segyio",
-    "trame",
-    "trame-vtk",
-    "trame-vuetify"
+    "lasio",
+    "zarr>=3",
 ]
+
+[project.urls]
+Homepage = "https://github.com/aashrith48/seisvtk"
+Repository = "https://github.com/aashrith48/seisvtk"
+
+[project.scripts]
+seisvtk-viewer = "seisvtk.viz.service:main"
+
+[project.optional-dependencies]
+# Rendering/serving: the trame+VTK viewer (seisvtk.viz). Add this only where you
+# actually render. Use the vtk-osmesa wheel instead of vtk for headless/CPU hosts.
+viz = ["vtk", "trame", "trame-vtk", "trame-vuetify"]
+# Reading a cube straight from object storage (s3://…) via an fsspec backend.
+s3 = ["fsspec", "s3fs"]
+test = ["pytest"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
 
 

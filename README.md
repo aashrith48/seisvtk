@@ -1,41 +1,55 @@
 # seisvtk
 
-3D seismic visualization with VTK.
+Server-side 3D seismic cross-section viewer (trame + VTK) with a lightweight,
+VTK-free I/O core. The viewer renders inline / crossline / Z slices of a cube and
+streams the rendered frames to the browser, so the client stays thin and the cube
+is read **out-of-core** — only the chunks a visible slice touches are loaded, from
+local disk or straight from object storage (`s3://`). Wells (including deviated)
+and horizons drape on the same grid.
 
-Runs on CPU or GPU — compute takes a `device` that falls back to CPU when no CUDA
-device is present.
-
-## Status
-
-Early development.
-
-## Installation
+## Install
 
 ```bash
-conda activate seis_env
-pip install -e .
+pip install seisvtk            # I/O core: SEG-Y -> Zarr, wells, horizons, geometry
+pip install "seisvtk[viz]"     # + the trame/VTK viewer
+pip install "seisvtk[s3]"      # + read cubes directly from s3://
 ```
 
-PyTorch is hardware-specific and best installed before the package. Blackwell cards
-(RTX 50-series, `sm_120`) need a CUDA 12.8+ build:
+The core has no VTK dependency, so a data producer (e.g. a pipeline step that
+only converts SEG-Y and writes overlays) installs just `seisvtk`. For a **headless
+/ CPU** render host, install the `vtk-osmesa` wheel in place of `vtk` (see
+`docker/Dockerfile`).
+
+## Use
+
+Serve a single cube:
 
 ```bash
-pip install torch --index-url https://download.pytorch.org/whl/cu130   # Blackwell
-pip install torch --index-url https://download.pytorch.org/whl/cu128   # Ada / Ampere / Hopper
-pip install torch --index-url https://download.pytorch.org/whl/cpu     # CPU-only
+python -m seisvtk.viz.app path/to/cube.zarr --mode property --port 8910
 ```
 
-Check the build is native for your card:
+Serve a scene manifest (a cube plus well/horizon overlays — `s3://` cubes work):
 
 ```bash
-python -c "import torch; print(torch.cuda.get_arch_list())"
+seisvtk-viewer scene.json --port 8910
 ```
 
-## Layout
+Convert a SEG-Y to a chunked Zarr from Python:
 
+```python
+from seisvtk.io.loaders import convert_segy
+convert_segy("survey.segy", "survey.zarr")   # geometry auto-detected from headers
 ```
-src/seisvtk/    # package source
-```
+
+## What's in the box
+
+- **I/O (`seisvtk.io`, no VTK):** streaming SEG-Y→Zarr conversion with survey-geometry
+  recovery; an out-of-core `Volume` reader (local or `s3://`); readers for wells
+  (LAS/CSV, deviation surveys, checkshots), horizons, and the survey affine
+  (`GridTransform`).
+- **Viewer (`seisvtk.viz`):** a trame app streaming inline/crossline/Z slice planes,
+  well tubes coloured by a log, and horizon surfaces; amplitude and property
+  colormaps; vertical exaggeration; runtime cube swap.
 
 ## License
 

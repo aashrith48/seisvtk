@@ -1,7 +1,34 @@
+import re
+
 import zarr
 import numpy as np
 from dataclasses import dataclass, field
 from pathlib import Path
+
+# A URL scheme like ``s3://`` / ``gs://`` / ``https://`` (but not a bare path or a
+# Windows drive ``D:\``) — opened through an fsspec-backed Zarr store so chunks
+# are fetched over the network on demand, never bulk-downloaded.
+_URL_SCHEME = re.compile(r"^[a-z][a-z0-9+.\-]*://", re.IGNORECASE)
+
+
+def _open_readonly_array(src) -> "zarr.Array":
+    """Open *src* as a read-only Zarr array, local or remote, without materialising it.
+
+    Accepts a local path, a remote URL (``s3://bucket/cube.zarr`` and the like, via
+    fsspec — the backend, e.g. ``s3fs``, must be installed), a pre-built Zarr store,
+    or an already-open array. In every case only chunks that are later indexed are
+    read, so a 500 GB cube on S3 costs a few range requests per slice, not a copy.
+    """
+    if isinstance(src, zarr.Array):
+        return src
+    from zarr.abc.store import Store
+    if isinstance(src, Store):
+        return zarr.open_array(store=src, mode="r")
+    if isinstance(src, str) and _URL_SCHEME.match(src):
+        from zarr.storage import FsspecStore
+        return zarr.open_array(store=FsspecStore.from_url(src, read_only=True), mode="r")
+    return zarr.open_array(src, mode="r")
+
 
 @dataclass
 class Volume:
@@ -10,10 +37,14 @@ class Volume:
     Wraps a Zarr store written by ``convert_segy_to_zarr`` and serves slices by
     *survey coordinate* (inline / crossline number, or vertical value) rather than
     raw array index. The underlying array is never materialised; only the chunks a
-    requested slice touches are read from disk (or, later, from object storage).
+    requested slice touches are read — from local disk or, for an ``s3://`` (or
+    other fsspec) URL, from object storage over the network. The cube itself never
+    lives in memory, so even a multi-GB volume on S3 costs only the few chunks a
+    visible slice touches.
 
     Attributes:
-        zarr_path: Path to the ``.zarr`` store.
+        zarr_path: The store to open — a local path, a remote URL (``s3://…`` via
+            fsspec), a pre-built Zarr store, or an already-open ``zarr.Array``.
         array: Lazy ``zarr.Array`` handle. Indexing it (``array[i, :, :]``) is what
             triggers the actual read; the object itself holds no samples.
         metadata: The store's ``.attrs`` as a plain dict — survey geometry written
@@ -24,17 +55,38 @@ class Volume:
             the axis *labels*.
     """
 
-    zarr_path: Path | str
+    zarr_path: "Path | str | object"
 
     def __post_init__(self):
         """Open the store lazily and cache its geometry.
 
         Reads only the Zarr metadata (``zarr.json``), not the sample data, so this
-        is instant even for a 500 GB cube.
+        is instant even for a 500 GB cube, and the same whether the store is local
+        or on S3.
         """
-        self.array = zarr.open_array(self.zarr_path, mode="r")
+        self.array = _open_readonly_array(self.zarr_path)
         self.metadata = dict(self.array.attrs)
         self.shape = self.array.shape
+
+    @property
+    def transform(self):
+        """The cube's survey affine as a :class:`~seisvtk.io.survey.GridTransform`.
+
+        Rebuilt from the ``survey_transform`` attribute (the six affine
+        coefficients) written at convert time when the SEG-Y carried world
+        coordinates, or by a host that knows its own georeference. ``None`` when
+        the store never recorded one — deviated wells then need an explicit
+        transform (e.g. from bin spacing). This is the map a well's world ``(X, Y)``
+        goes through to land on inline/crossline.
+        """
+        if not hasattr(self, "_transform"):
+            st = self.metadata.get("survey_transform")
+            if st:
+                from seisvtk.io.survey import GridTransform
+                self._transform = GridTransform.from_dict(st)
+            else:
+                self._transform = None
+        return self._transform
 
     def seismic_slice(self, idx):
         """Index the underlying Zarr array directly, in *array-index* space.
