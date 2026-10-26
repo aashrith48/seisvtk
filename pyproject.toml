@@ -35,12 +35,16 @@ Homepage = "https://github.com/aashrith48/seisvtk"
 Repository = "https://github.com/aashrith48/seisvtk"
 
 [project.scripts]
+# Serve one scene (a per-session worker, or a standalone single-cube viewer).
 seisvtk-viewer = "seisvtk.viz.service:main"
+# The long-running multi-session service front (spawns + reverse-proxies workers).
+seisvtk-viewer-service = "seisvtk.viz.viewer_service:main"
 
 [project.optional-dependencies]
-# Rendering/serving: the trame+VTK viewer (seisvtk.viz). Add this only where you
-# actually render. Use the vtk-osmesa wheel instead of vtk for headless/CPU hosts.
-viz = ["vtk", "trame", "trame-vtk", "trame-vuetify"]
+# Rendering/serving: the trame+VTK viewer (seisvtk.viz) plus the aiohttp session
+# service. Add this only where you actually render. Use the vtk-osmesa wheel
+# instead of vtk for headless/CPU hosts.
+viz = ["vtk", "trame", "trame-vtk", "trame-vuetify", "aiohttp"]
 # Reading a cube straight from object storage (s3://…) via an fsspec backend.
 s3 = ["fsspec", "s3fs"]
 test = ["pytest"]

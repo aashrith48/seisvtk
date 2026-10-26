@@ -11,8 +11,10 @@
 # render path; it has not been built in the authoring session.
 #
 # Build:  docker build -f docker/Dockerfile -t seisvtk-viewer:osmesa .
-# Run  :  docker run --rm -p 8910:8910 -e SCENE=/data/scene.json \
-#            -v /path/to/data:/data seisvtk-viewer:osmesa
+# Run  :  docker run --rm -p 8914:8914 \
+#            -e SEISVTK_VIEWER_SECRET=<shared-secret> \
+#            -e SEISVTK_VIEWER_PUBLIC_BASE=https://viewer.example \
+#            seisvtk-viewer:osmesa
 FROM python:3.11-slim-bookworm
 
 # Minimal runtime libs the vtk-osmesa wheel links against (it bundles OSMesa).
@@ -23,21 +25,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV PYTHONUNBUFFERED=1 \
     LIBGL_ALWAYS_SOFTWARE=1 \
     VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow \
-    PORT=8910
+    PORT=8914
 
 WORKDIR /app
 COPY . /app
 
 # Core (numpy/pandas/segyio/lasio/zarr) from the package, then the viz stack with
-# the OSMesa VTK wheel (not plain `vtk`) + the S3 store backend.
+# the OSMesa VTK wheel (not plain `vtk`) + aiohttp (session service) + the S3
+# store backend (so a cube opens straight from s3:// — chunks stream on demand).
 RUN pip install --no-cache-dir . \
     && pip install --no-cache-dir \
         vtk-osmesa trame trame-vtk trame-vuetify \
-        fsspec s3fs
+        aiohttp fsspec s3fs
 
-EXPOSE 8910
+EXPOSE 8914
 
-# Phase 0 default: serve a single scene manifest (local path or s3:// cube inside).
-# Phase 2 replaces this entrypoint with the per-session manager that mints a scene
-# per viewer session from a chart id + token.
-CMD ["sh", "-c", "seisvtk-viewer \"$SCENE\" --port \"$PORT\" --host 0.0.0.0"]
+# The long-running multi-session service: it mints a trame worker per viewer
+# session (each worker runs `seisvtk-viewer` on an internal port) and reverse-
+# proxies the browser to it. A scene comes from the signed token, not the image,
+# so one container serves every chart. Token auth is enabled via
+# SEISVTK_VIEWER_SECRET; SEISVTK_VIEWER_PUBLIC_BASE sets the external URL.
+CMD ["seisvtk-viewer-service"]

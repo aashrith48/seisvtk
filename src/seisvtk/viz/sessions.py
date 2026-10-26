@@ -27,12 +27,18 @@ def _os_free_port() -> int:
 
 
 def _default_launch(scene_ref: str, port: int) -> Any:
-    """Start a ``seisvtk-viewer`` process serving *scene_ref* on *port*."""
+    """Start a ``seisvtk-viewer`` process serving *scene_ref* on *port*.
+
+    The worker binds **127.0.0.1**: it is reachable only through this service's
+    reverse proxy (which enforces the token + session cookie), never directly.
+    ``--`` ends option parsing so a scene that begins with ``-`` can never be
+    mistaken for a flag.
+    """
     import subprocess
 
     return subprocess.Popen(
-        [sys.executable, "-m", "seisvtk.viz.service", scene_ref,
-         "--port", str(port), "--host", "0.0.0.0"])
+        [sys.executable, "-m", "seisvtk.viz.service",
+         "--port", str(port), "--host", "127.0.0.1", "--", scene_ref])
 
 
 @dataclass

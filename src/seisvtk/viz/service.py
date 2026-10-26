@@ -35,6 +35,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import posixpath
+import re
 
 import numpy as np
 
@@ -44,6 +47,37 @@ from seisvtk.io.well import Well
 
 # ``build`` (and VTK/trame) is imported lazily inside ``serve`` so manifest parsing
 # stays importable wherever only the I/O core is installed.
+
+_URL_SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.\-]*://")
+
+
+def _read_manifest(src: str):
+    """Load a scene.json from a local path or a URL (s3://…); return (dict, base_dir).
+
+    *base_dir* is the directory the manifest lives in, used to resolve overlay
+    paths given relative to it, so a scene bundle stays portable (the node writes
+    the cube name relative to the manifest; the viewer joins it with wherever the
+    manifest actually is — a shared volume, or an ``s3://`` prefix)."""
+    if _URL_SCHEME.match(src):
+        import fsspec  # part of the [s3] extra; present in the viewer image
+        with fsspec.open(src, "r") as f:
+            manifest = json.load(f)
+        return manifest, src.rsplit("/", 1)[0]
+    with open(src) as f:
+        manifest = json.load(f)
+    return manifest, os.path.dirname(os.path.abspath(src))
+
+
+def _resolve(ref: str, base: str) -> str:
+    """Resolve an overlay/cube *ref* against the manifest's *base* dir.
+
+    Absolute refs (a URL, or an absolute local path) are returned unchanged;
+    a relative ref is joined onto *base* — in URL space when *base* is a URL."""
+    if not isinstance(ref, str) or _URL_SCHEME.match(ref) or os.path.isabs(ref):
+        return ref
+    if _URL_SCHEME.match(base):
+        return f"{base.rstrip('/')}/{ref}"
+    return os.path.normpath(os.path.join(base, ref))
 
 
 def _arrays(entry: dict, keys):
@@ -83,17 +117,23 @@ def load_scene(manifest: dict | str):
     Returns ``(zarr, build_kwargs, horizons, wells)``. Only the cube's metadata is
     read here (for optional well clipping) — never its samples.
     """
+    base = ""
     if isinstance(manifest, str):
-        with open(manifest) as f:
-            manifest = json.load(f)
+        manifest, base = _read_manifest(manifest)
 
-    zarr = manifest["zarr"]
+    zarr = _resolve(manifest["zarr"], base)
     z_range = None
     if manifest.get("clip_wells_to_cube", True):
         z_range = Volume(zarr_path=zarr).metadata["z_range"]
 
-    horizons = [_horizon(h) for h in manifest.get("horizons", [])]
-    wells = [w for w in (_well(e, z_range) for e in manifest.get("wells", [])) if w]
+    def _rebase(entries):
+        for e in entries:
+            if "npz" in e:
+                e = {**e, "npz": _resolve(e["npz"], base)}
+            yield e
+
+    horizons = [_horizon(h) for h in _rebase(manifest.get("horizons", []))]
+    wells = [w for w in (_well(e, z_range) for e in _rebase(manifest.get("wells", []))) if w]
 
     kwargs = {k: manifest[k] for k in
               ("mode", "colormap", "ve", "well_radius", "z_unit", "value_label")
